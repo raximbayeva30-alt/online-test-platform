@@ -36,6 +36,30 @@ def login():
             return "Xato! Ism yoki parol noto'g'ri. <a href='/login'>Orqaga</a>"
     return render_template('login.html')
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        ism = request.form.get('ism')
+        parol = request.form.get('parol')
+        
+        db = sqlite3.connect('imtihon_bazasi.db')
+        cursor = db.cursor()
+        
+        # Check if user already exists
+        cursor.execute("SELECT * FROM foydalanuvchilar WHERE ism=?", (ism,))
+        if cursor.fetchone():
+            db.close()
+            return "Xato! Bu ism band. <a href='/register'>Orqaga</a>"
+            
+        cursor.execute("INSERT INTO foydalanuvchilar (ism, parol) VALUES (?, ?)", (ism, parol))
+        db.commit()
+        db.close()
+
+        session['user'] = ism
+        return redirect(url_for('index'))
+        
+    return render_template('register.html')
+
 @app.route('/test', methods=['GET', 'POST'])
 def test():
     if 'user' not in session:

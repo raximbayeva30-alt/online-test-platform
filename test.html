@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Ishlash</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .q-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .btn:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Fan: {{ fan }}</h2>
+        <p>Talaba: <b>{{ user }}</b></p>
+        <form action="/test" method="post">
+            <input type="hidden" name="fan" value="{{ fan }}">
+            {% for s in savollar %}
+            <div class="q-card">
+                <p><b>{{ loop.index }}. {{ s.savol }}</b></p>
+                <label><input type="radio" name="q{{s.id}}" value="A" required> {{ s.a }}</label><br><br>
+                <label><input type="radio" name="q{{s.id}}" value="B"> {{ s.b }}</label>
+            </div>
+            {% endfor %}
+            <button type="submit" name="yakunlash" class="btn">Testni yakunlash</button>
+        </form>
+    </div>
+</body>
+
+</html>
