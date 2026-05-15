@@ -1,13 +1,13 @@
 import sqlite3
+import time
 from flask import Flask, render_template, request, redirect, url_for, session
 
 def get_db_connection():
-   conn = sqlite3.connect('yangi_baza.db')
+    conn = sqlite3.connect('imtihon_bazasi.db')
     conn.row_factory = sqlite3.Row
-    
     cursor = conn.cursor()
     
-    # 1. Foydalanuvchilar jadvali (Ism, Tel va Parol bilan)
+    # 1. Foydalanuvchilar jadvali
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS foydalanuvchilar (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,7 +31,20 @@ def get_db_connection():
         )
     ''')
     
-    # 3. Agar bazada savollar bo'lmasa, fanlarni avtomat qo'shish
+    # 3. Reyting (Natijalar) jadvali — Vaqt va Tel raqam bilan
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS natijalar (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ism TEXT NOT NULL,
+            tel TEXT NOT NULL,
+            fan TEXT NOT NULL,
+            to_gri_javoblar INTEGER NOT NULL,
+            jami_savollar INTEGER NOT NULL,
+            sarflangan_vaqt TEXT NOT NULL
+        )
+    ''')
+    
+    # Savollar bo'lmasa avtomat qo'shish
     cursor.execute("SELECT COUNT(*) FROM testlar")
     if cursor.fetchone()[0] == 0:
         barcha_savollar = [
@@ -92,6 +105,7 @@ def register():
             db.commit()
             db.close()
             session['user'] = ism
+            session['user_tel'] = tel  # Telefonni sessionga saqlaymiz, reyting uchun
             return redirect(url_for('index'))
         except sqlite3.IntegrityError:
             db.close()
@@ -116,6 +130,7 @@ def login():
         
         if user:
             session['user'] = user['ism']
+            session['user_tel'] = user['tel']
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error="Xato! Ism/Telefon yoki parol noto'g'ri.")
@@ -133,15 +148,53 @@ def test(fan_nomi):
     savollar = cursor.fetchall()
     db.close()
     
+    if request.method == 'GET':
+        # Test sahifasiga kirgan vaqtni yozib olamiz
+        session['boshlangan_vaqt'] = time.time()
+        return render_template('test.html', fan=fan_nomi, savollar=savollar)
+        
     if request.method == 'POST':
+        # Vaqtni hisoblash
+        boshlangan = session.get('boshlangan_vaqt', time.time())
+        yakunlangan = time.time()
+        farq_soniya = int(yakunlangan - boshlangan)
+        
+        # Vaqtni chiroyli ko'rinishga keltirish (Masalan: 1 qadam 25 soniya)
+        if farq_soniya < 60:
+            sarflangan_vaqt = f"{farq_soniya} soniya"
+        else:
+            sarflangan_vaqt = f"{farq_soniya // 60} daqiqa {farq_soniya % 60} soniya"
+            
         to_gri_javoblar = 0
         for savol in savollar:
             tanlangan_javob = request.form.get(f"savol_{savol['id']}")
             if tanlangan_javob == savol['javob']:
                 to_gri_javoblar += 1
-        return render_template('natija.html', fan=fan_nomi, jami=len(savollar), to_gri=to_gri_javoblar)
+                
+        # Natijani bazaga (Reyting jadvaliga) saqlaymiz
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute('''
+            INSERT INTO natijalar (ism, tel, fan, to_gri_javoblar, jami_savollar, sarflangan_vaqt)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (session['user'], session.get('user_tel', '-'), fan_nomi, to_gri_javoblar, len(savollar), sarflangan_vaqt))
+        db.commit()
+        db.close()
         
-    return render_template('test.html', fan=fan_nomi, savollar=savollar)
+        return render_template('natija.html', fan=fan_nomi, jami=len(savollar), to_gri=to_gri_javoblar, vaqt=sarflangan_vaqt)
+
+@app.route('/rating')
+def rating():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    db = get_db_connection()
+    cursor = db.cursor()
+    # Eng ko'p to'g'ri topganlar bo'yicha reytingni saralash
+    cursor.execute('SELECT * FROM natijalar ORDER BY to_gri_javoblar DESC, id ASC')
+    tizim_natijalari = cursor.fetchall()
+    db.close()
+    return render_template('rating.html', natijalar=tizim_natijalari)
 
 @app.route('/logout')
 def logout():
