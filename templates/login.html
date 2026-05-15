@@ -1,20 +1,19 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <title>Kirish</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tizimga kirish</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background: #f0f2f5;
             margin: 0;
         }
-
         .login-card {
             background: white;
             padding: 40px;
@@ -23,7 +22,10 @@
             width: 320px;
             text-align: center;
         }
-
+        h2 {
+            margin-bottom: 25px;
+            color: #333;
+        }
         input {
             width: 100%;
             padding: 12px;
@@ -31,30 +33,55 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             box-sizing: border-box;
+            font-size: 14px;
         }
-
         button {
             width: 100%;
             padding: 12px;
-            background: #667eea;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 8px;
-            cursor: pointer;
+            font-size: 16px;
             font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .register-link {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+        .register-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
-
 <body>
+
     <div class="login-card">
         <h2>Tizimga kirish</h2>
+        
         <form method="POST">
-            <input type="text" name="ism" placeholder="Foydalanuvchi nomi" required>
-            <input type="password" name="parol" placeholder="Parol" required>
+            <input type="text" name="ism" placeholder="Ismingiz" required>
+            <input type="password" name="parol" placeholder="Parolingiz" required>
             <button type="submit">Kirish</button>
         </form>
-    </div>
-</body>
 
+        <div class="register-link">
+            Hali ro'yxatdan o'tmadingizmi? <br>
+            <a href="{{ url_for('register') }}">Yangi hisob yaratish</a>
+        </div>
+
+    </div>
+
+</body>
 </html>
