@@ -1,67 +1,31 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <title>Test Ishlash</title>
+    <title>{{ fan }} Testi</title>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .q-card {
-            background: #f8fafc;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 5px solid #667eea;
-        }
-
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 15px;
-            width: 100%;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 18px;
-        }
-
-        .btn:hover {
-            background: #764ba2;
-        }
+        body { font-family: sans-serif; background-color: #f4f6f9; padding: 20px; }
+        .container { max-width: 600px; margin: 20px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .savol { margin-bottom: 25px; background: #fafafa; padding: 15px; border-left: 4px solid #007bff; }
+        .variant { margin: 8px 0; }
+        button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
     </style>
 </head>
-
 <body>
     <div class="container">
-        <h2>Fan: {{ fan }}</h2>
-        <p>Talaba: <b>{{ user }}</b></p>
-        <form action="/test" method="post">
-            <input type="hidden" name="fan" value="{{ fan }}">
-            {% for s in savollar %}
-            <div class="q-card">
-                <p><b>{{ loop.index }}. {{ s.savol }}</b></p>
-                <label><input type="radio" name="q{{s.id}}" value="A" required> {{ s.a }}</label><br><br>
-                <label><input type="radio" name="q{{s.id}}" value="B"> {{ s.b }}</label>
-            </div>
+        <h1>{{ fan }} fani bo'yicha test</h1>
+        <form method="POST">
+            {% for savol in savollar %}
+                <div class="savol">
+                    <p><strong>{{ loop.index }}. {{ savol['savol'] }}</strong></p>
+                    <div class="variant"><input type="radio" name="savol_{{ savol['id'] }}" value="A" required> A) {{ savol['variant_a'] }}</div>
+                    <div class="variant"><input type="radio" name="savol_{{ savol['id'] }}" value="B"> B) {{ savol['variant_b'] }}</div>
+                    <div class="variant"><input type="radio" name="savol_{{ savol['id'] }}" value="C"> C) {{ savol['variant_c'] }}</div>
+                    <div class="variant"><input type="radio" name="savol_{{ savol['id'] }}" value="D"> D) {{ savol['variant_d'] }}</div>
+                </div>
             {% endfor %}
-            <button type="submit" name="yakunlash" class="btn">Testni yakunlash</button>
+            <button type="submit">Natijani ko'rish</button>
         </form>
     </div>
 </body>
-
 </html>
