@@ -1,19 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import sqlite3
 import time
+import os
 
 app = Flask(__name__)
-app.secret_key = 'maxfiy_kalit_999'
+app.secret_key = 'kod_123'
+
+# Bazaga ulanish funksiyasi (xatolik bermasligi uchun)
+def get_db_connection():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(base_dir, 'imtihon_bazasi.db')
+    return sqlite3.connect(db_path)
 
 @app.route('/')
 def index():
     if 'user' not in session:
         return redirect(url_for('login'))
-    
-    db = sqlite3.connect('imtihon_bazasi.db')
+    db = get_db_connection()
     cursor = db.cursor()
     cursor.execute("SELECT DISTINCT fan FROM testlar")
-    fanlar = [{'fan': f[0]} for f in cursor.fetchall()]
+    fanlar = cursor.fetchall()
     db.close()
     return render_template('index.html', user=session['user'], fanlar=fanlar)
 
@@ -22,95 +28,76 @@ def login():
     if request.method == 'POST':
         ism = request.form.get('ism')
         parol = request.form.get('parol')
-        
-        db = sqlite3.connect('imtihon_bazasi.db')
+        db = get_db_connection()
         cursor = db.cursor()
         cursor.execute("SELECT * FROM foydalanuvchilar WHERE ism=? AND parol=?", (ism, parol))
         user = cursor.fetchone()
         db.close()
-
         if user:
             session['user'] = ism
             return redirect(url_for('index'))
-        else:
-            return "Xato! Ism yoki parol noto'g'ri. <a href='/login'>Orqaga</a>"
+        return "Xato! Ism yoki parol noto'g'ri."
     return render_template('login.html')
 
+# SIZ ISTAGAN RO'YXATDAN O'TISH QISMI:
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         ism = request.form.get('ism')
         parol = request.form.get('parol')
-        
-        db = sqlite3.connect('imtihon_bazasi.db')
+        db = get_db_connection()
         cursor = db.cursor()
-        
-        # Check if user already exists
-        cursor.execute("SELECT * FROM foydalanuvchilar WHERE ism=?", (ism,))
-        if cursor.fetchone():
+        try:
+            cursor.execute("INSERT INTO foydalanuvchilar (ism, parol) VALUES (?, ?)", (ism, parol))
+            db.commit()
+            session['user'] = ism
+            return redirect(url_for('index'))
+        except:
+            return "Bu foydalanuvchi allaqachon mavjud."
+        finally:
             db.close()
-            return "Xato! Bu ism band. <a href='/register'>Orqaga</a>"
-            
-        cursor.execute("INSERT INTO foydalanuvchilar (ism, parol) VALUES (?, ?)", (ism, parol))
-        db.commit()
-        db.close()
-
-        session['user'] = ism
-        return redirect(url_for('index'))
-        
     return render_template('register.html')
 
 @app.route('/test', methods=['GET', 'POST'])
 def test():
     if 'user' not in session:
         return redirect(url_for('login'))
-
     if request.method == 'POST':
         if 'yakunlash' in request.form:
-            # Vaqtni hisoblash
-            tugash_vaqti = time.time()
-            boshlash_vaqti = session.get('start_time', tugash_vaqti)
-            farq = int(tugash_vaqti - boshlash_vaqti)
+            farq = int(time.time() - session.get('start_time', time.time()))
             vaqt_matni = f"{farq // 60} min {farq % 60} sek"
-
-            # Ballni hisoblash
             fan = request.form.get('fan')
-            db = sqlite3.connect('imtihon_bazasi.db')
+            db = get_db_connection()
             cursor = db.cursor()
             cursor.execute("SELECT * FROM testlar WHERE fan=?", (fan,))
             savollar = cursor.fetchall()
-            
             ball = 0
             for s in savollar:
                 javob = request.form.get(f'q{s[0]}')
-                if javob == s[5]: ball += 1
-            
-            # Natijani bazaga saqlash
-            cursor.execute("INSERT INTO natijalar (ism, fan, ball, vaqt) VALUES (?, ?, ?, ?)",
-                           (session['user'], fan, ball, vaqt_matni))
+                if javob == s[5]:
+                    ball += 1
+            cursor.execute("INSERT INTO natijalar (ism, fan, ball, vaqt) VALUES (?, ?, ?, ?)", (session['user'], fan, ball, vaqt_matni))
             db.commit()
             db.close()
-            
             return render_template('natija.html', ball=ball, jami=len(savollar), vaqt=vaqt_matni)
-
-        # Testni boshlash
+        
         fan = request.form.get('fan')
         session['start_time'] = time.time()
-        db = sqlite3.connect('imtihon_bazasi.db')
+        db = get_db_connection()
         cursor = db.cursor()
         cursor.execute("SELECT * FROM testlar WHERE fan=?", (fan,))
-        savollar = [{'id': s[0], 'savol': s[2], 'a': s[3], 'b': s[4]} for s in cursor.fetchall()]
+        savollar = cursor.fetchall()
         db.close()
         return render_template('test.html', savollar=savollar, fan=fan, user=session['user'])
 
 @app.route('/rating')
 def rating():
-    db = sqlite3.connect('imtihon_bazasi.db')
+    db = get_db_connection()
     cursor = db.cursor()
     cursor.execute("SELECT ism, fan, ball, vaqt FROM natijalar ORDER BY ball DESC")
-    top_natijalar = cursor.fetchall()
+    natijalar = cursor.fetchall()
     db.close()
-    return render_template('rating.html', natijalar=top_natijalar)
+    return render_template('rating.html', natijalar=natijalar)
 
 @app.route('/logout')
 def logout():
@@ -118,4 +105,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
