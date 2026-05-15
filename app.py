@@ -7,12 +7,13 @@ def get_db_connection():
     
     cursor = conn.cursor()
     
-    # 1. Foydalanuvchilar jadvali
+    # 1. Foydalanuvchilar jadvali (Ism, Tel va Parol bilan)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS foydalanuvchilar (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
+            ism TEXT UNIQUE NOT NULL,
+            tel TEXT NOT NULL,
+            parol TEXT NOT NULL
         )
     ''')
     
@@ -30,7 +31,7 @@ def get_db_connection():
         )
     ''')
     
-    # 3. Agar bazada savollar bo'lmasa, barcha fanlarni avtomat qo'shish
+    # 3. Agar bazada savollar bo'lmasa, fanlarni avtomat qo'shish
     cursor.execute("SELECT COUNT(*) FROM testlar")
     if cursor.fetchone()[0] == 0:
         barcha_savollar = [
@@ -64,62 +65,72 @@ def get_db_connection():
     return conn
 
 app = Flask(__name__)
-app.secret_key = 'maxfiy_kalit_bu_yerda'
+app.secret_key = 'kod_123'
 
 @app.route('/')
 def index():
-    if 'user_id' in session:
+    if 'user' in session:
         db = get_db_connection()
-        fanlar = db.execute('SELECT DISTINCT fan FROM testlar').fetchall()
+        cursor = db.cursor()
+        cursor.execute('SELECT DISTINCT fan FROM testlar')
+        fanlar = cursor.fetchall()
         db.close()
-        return render_template('index.html', fanlar=fanlar, username=session['username'])
+        return render_template('index.html', fanlar=fanlar, user=session['user'])
     return redirect(url_for('login'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        ism = request.form.get('ism')
+        tel = request.form.get('tel')
+        parol = request.form.get('parol')
         
         db = get_db_connection()
         cursor = db.cursor()
         try:
-            cursor.execute("INSERT INTO foydalanuvchilar (username, password) VALUES (?, ?)", (username, password))
+            cursor.execute("INSERT INTO foydalanuvchilar (ism, tel, parol) VALUES (?, ?, ?)", (ism, tel, parol))
             db.commit()
             db.close()
-            return redirect(url_for('login'))
+            session['user'] = ism
+            return redirect(url_for('index'))
         except sqlite3.IntegrityError:
             db.close()
-            return render_template('register.html', error="Bu login band. Boshqa login tanlang!")
+            return render_template('register.html', error="Xato! Bu ism band.")
             
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        ism_yoki_tel = request.form.get('ism')
+        parol = request.form.get('parol')
         
         db = get_db_connection()
-        user = db.execute('SELECT * FROM foydalanuvchilar WHERE username = ? AND password = ?', (username, password)).fetchone()
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT * FROM foydalanuvchilar 
+            WHERE (ism = ? OR tel = ?) AND parol = ?
+        ''', (ism_yoki_tel, ism_yoki_tel, parol))
+        user = cursor.fetchone()
         db.close()
         
         if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
+            session['user'] = user['ism']
             return redirect(url_for('index'))
         else:
-            return render_template('login.html', error="Login yoki parol noto'g'ri!")
+            return render_template('login.html', error="Xato! Ism/Telefon yoki parol noto'g'ri.")
             
     return render_template('login.html')
 
 @app.route('/test/<string:fan_nomi>', methods=['GET', 'POST'])
 def test(fan_nomi):
-    if 'user_id' not in session:
+    if 'user' not in session:
         return redirect(url_for('login'))
         
     db = get_db_connection()
-    savollar = db.execute('SELECT * FROM testlar WHERE fan = ?', (fan_nomi,)).fetchall()
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM testlar WHERE fan = ?', (fan_nomi,))
+    savollar = cursor.fetchall()
     db.close()
     
     if request.method == 'POST':
