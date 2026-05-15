@@ -6,7 +6,6 @@ import os
 app = Flask(__name__)
 app.secret_key = 'kod_123'
 
-# Bazaga ulanish funksiyasi (xatolik bermasligi uchun)
 def get_db_connection():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(base_dir, 'imtihon_bazasi.db')
@@ -36,10 +35,9 @@ def login():
         if user:
             session['user'] = ism
             return redirect(url_for('index'))
-        return "Xato! Ism yoki parol noto'g'ri."
+        return "Xato! Ism yoki parol noto'g'ri. <a href='/login'>Orqaga</a>"
     return render_template('login.html')
 
-# SIZ ISTAGAN RO'YXATDAN O'TISH QISMI:
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -53,7 +51,7 @@ def register():
             session['user'] = ism
             return redirect(url_for('index'))
         except:
-            return "Bu foydalanuvchi allaqachon mavjud."
+            return "Xato! Bu ism band. <a href='/register'>Orqaga</a>"
         finally:
             db.close()
     return render_template('register.html')
@@ -74,8 +72,7 @@ def test():
             ball = 0
             for s in savollar:
                 javob = request.form.get(f'q{s[0]}')
-                if javob == s[5]:
-                    ball += 1
+                if javob == s[5]: ball += 1
             cursor.execute("INSERT INTO natijalar (ism, fan, ball, vaqt) VALUES (?, ?, ?, ?)", (session['user'], fan, ball, vaqt_matni))
             db.commit()
             db.close()
