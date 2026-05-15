@@ -2,7 +2,7 @@ import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session
 
 def get_db_connection():
-    conn = sqlite3.connect('imtihon_bazasi.db')
+   conn = sqlite3.connect('yangi_baza.db')
     conn.row_factory = sqlite3.Row
     
     cursor = conn.cursor()
