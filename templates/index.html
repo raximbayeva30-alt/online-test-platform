@@ -10,6 +10,7 @@
         .fan-card { background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
         .btn { padding: 8px 16px; background: #17a2b8; color: white; text-decoration: none; border-radius: 4px; }
         .btn:hover { background: #138496; }
+        .btn-rating { display: block; text-align: center; padding: 10px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-top: 20px; font-weight: bold;}
         .logout { color: red; text-decoration: none; float: right; margin-top: 10px; }
     </style>
 </head>
@@ -25,6 +26,7 @@
                 <a href="{{ url_for('test', fan_nomi=fan['fan']) }}" class="btn">Testni boshlash</a>
             </div>
         {% endfor %}
+        <a href="{{ url_for('rating') }}" class="btn-rating">🏆 Umumiy Reytingni Ko'rish</a>
     </div>
 </body>
 </html>
