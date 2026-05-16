@@ -79,17 +79,34 @@ def get_db_connection():
 
 app = Flask(__name__)
 app.secret_key = 'kod_123'
+# app.py ichidagi eski @app.route('/login', ...) qismini toping va 
+# faqat ichidagi mantiqni mana buga almashtiring:
 
-@app.route('/')
-def index():
-    if 'user' in session:
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute('SELECT DISTINCT fan FROM testlar')
-        fanlar = cursor.fetchall()
-        db.close()
-        return render_template('index.html', fanlar=fanlar, user=session['user'])
-    return redirect(url_for('login'))
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        phone = request.form.get('phone')
+        password = request.form.get('password')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Parolni so'rovdan olib tashladik, faqat telefon raqam bilan qidiramiz
+        cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        # 2. Endi parolni xavfsiz taqqoslaymiz (user[2] - bazadagi shifrlangan parol)
+        if user and check_password_hash(user[2], password):  
+            session['logged_in'] = True
+            session['user_id'] = user[0]
+            session['phone'] = user[1]
+            return redirect(url_for('dashboard')) # o'zingizning dashboard yoki quiz yo'nalishingiz
+        else:
+            flash("Login yoki parol xato kiritildi!", "danger")
+            return redirect(url_for('login'))
+            
+    return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
