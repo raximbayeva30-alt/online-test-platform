@@ -7,19 +7,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'super_secret_kurs_ishi_kaliti_2026_final'
 
-# Foydalanuvchi sessiyasini 30 kun eslab qolish uchun
 @app.before_request
 def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(days=30)
 
-# Ma'lumotlar bazasiga ulanish funksiyasi
 def get_db_connection():
-    conn = sqlite3.connect('yangi_baza.db')
+    # Azure serverlarida xato bermasligi uchun bazani mutloq to'g'ri yo'naltirish
+    db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'yangi_baza.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
-# Jadvallar va hamma 30 ta savolni yaratish
 def ozi_avtomat_baza_yaratish():
     db = get_db_connection()
     cursor = db.cursor()
@@ -39,14 +38,12 @@ def ozi_avtomat_baza_yaratish():
     )''')
     db.commit()
     
-    # Agar fanlar jadvali bo'sh bo'lsa, ma'lumot kiritamiz
     cursor.execute("SELECT COUNT(*) FROM fanlar")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO fanlar (nomi) VALUES ('Matematika'), ('Dasturlash (Python)'), ('Ingliz tili')")
         db.commit()
         
         hamma_savollar = [
-            # Matematika (10 ta savol)
             (1, '5 * 5 + 5 nechaga teng?', '25', '30', '35', '20', 'B'),
             (1, '12 ning kvadrati qancha?', '144', '122', '134', '154', 'A'),
             (1, 'Tub sonni toping.', '4', '6', '9', '7', 'D'),
@@ -58,7 +55,6 @@ def ozi_avtomat_baza_yaratish():
             (1, 'Kvadratning tomoni 4 bo`lsa, uning perimetri qancha?', '8', '12', '16', '20', 'C'),
             (1, 'Eng kichik juft son qaysi?', '0', '2', '4', '1', 'B'),
             
-            # Dasturlash Python (10 ta savol)
             (2, 'Konsolga chiqarish buyrug`i qaysi?', 'input()', 'print()', 'output()', 'echo', 'B'),
             (2, 'Ro`yxat qavsi qaysi?', '()', '{}', '[]', '<>', 'C'),
             (2, 'Python dasturlash tili qachon yaratilgan?', '1991', '2000', '1985', '1995', 'A'),
@@ -70,7 +66,6 @@ def ozi_avtomat_baza_yaratish():
             (2, 'Python fayllari qaysi kengaytmada saqlanadi?', '.py', '.txt', '.html', '.exe', 'A'),
             (2, 'Qaysi ma`lumot turi faqat True yoki False qiymat oladi?', 'int', 'string', 'list', 'boolean', 'D'),
 
-            # Ingliz tili (10 ta savol)
             (3, 'I ___ a student.', 'am', 'is', 'are', 'be', 'A'),
             (3, 'She ___ to school every day.', 'go', 'goes', 'going', 'gone', 'B'),
             (3, 'Find the past simple form of "go".', 'goed', 'gone', 'went', 'goes', 'C'),
@@ -90,7 +85,9 @@ def ozi_avtomat_baza_yaratish():
         db.commit()
     db.close()
 
-# Tizimga kirish (Asosiy sahifa)
+# Dastur boshlanishida bazani avtomat yaratish
+ozi_avtomat_baza_yaratish()
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if 'user_id' in session:
@@ -114,7 +111,6 @@ def login():
             
     return render_template('login.html')
 
-# Ro'yxatdan o'tish sahifasi
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -137,7 +133,6 @@ def register():
             
     return render_template('register.html')
 
-# Boshqaruv paneli (Fanlar va Natijalar ko'rinadigan joy)
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
@@ -150,7 +145,6 @@ def dashboard():
     
     return render_template('dashboard.html', fanlar=fanlar, natijalar=natijalar)
 
-# Test topshirish jarayoni
 @app.route('/test/<int:fan_id>', methods=['GET', 'POST'])
 def test(fan_id):
     if 'user_id' not in session:
@@ -172,7 +166,6 @@ def test(fan_id):
         ball = (togri_javoblar_soni / jami_savollar) * 100 if jami_savollar > 0 else 0
         ball = round(ball, 1)
         
-        # Natijani bazaga yozish
         db.execute("""
             INSERT INTO natijalar (user_tel, user_ism, fan_nomi, ball) 
             VALUES (?, ?, ?, ?)
@@ -186,12 +179,10 @@ def test(fan_id):
     db.close()
     return render_template('test.html', fan=fan, savollar=savollar)
 
-# Tizimdan chiqish
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    ozi_avtomat_baza_yaratish()
     app.run(debug=True)
