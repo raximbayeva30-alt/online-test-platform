@@ -184,18 +184,43 @@ def test(fan_nomi):
         return render_template('natija.html', fan=fan_nomi, jami=len(savollar), to_gri=to_gri_javoblar, vaqt=sarflangan_vaqt)
 
 # REYTING
-@app.route('/rating')
-def rating():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-        
+@app.route('/')
+@app.route('/index')
+def index():
+    # Baza yuklanayotganda jadvallar va fanlar borligini avtomat tekshirish
     db = get_db_connection()
     cursor = db.cursor()
-    cursor.execute('SELECT * FROM natijalar ORDER BY to_gri_javoblar DESC, id ASC')
-    tizim_natijalari = cursor.fetchall()
-    db.close()
-    return render_template('rating.html', natijalar=tizim_natijalari)
+    
+    # 1. Agar jadvallar o'chib ketgan bo'lsa, ularni qayta yaratish
+    cursor.execute('''CREATE TABLE IF NOT EXISTS fanlar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        nomi TEXT
+    )''')
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS foydalanuvchilar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ism TEXT,
+        tel TEXT,
+        parol TEXT
+    )''')
 
+    # 2. Agar fanlar yo'q bo'lsa, ularni avtomat bazaga yozish
+    cursor.execute("SELECT COUNT(*) FROM fanlar")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO fanlar (nomi) VALUES ('Matematika')")
+        cursor.execute("INSERT INTO fanlar (nomi) VALUES ('Dasturlash (Python)')")
+        cursor.execute("INSERT INTO fanlar (nomi) VALUES ('Ingliz tili')")
+        db.commit()
+    
+    # 3. Fanlarni bazadan o'qib olib, bosh sahifaga yuborish
+    cursor.execute("SELECT * FROM fanlar")
+    fanlar = cursor.fetchall()
+    db.close()
+    
+    # Foydalanuvchi tizimga kirgan bo'lsa bosh sahifani, aks holda loginni ko'rsatish
+    if 'user' in session:
+        return render_template('index.html', fanlar=fanlar, user=session['user'])
+    return redirect(url_for('login'))
 # TIZIMDAN CHIQISH
 @app.route('/logout')
 def logout():
