@@ -15,9 +15,7 @@ def make_session_permanent():
 
 # Ma'lumotlar bazasiga ulanish funksiyasi
 def get_db_connection():
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    db_path = os.path.join(base_dir, 'yangi_baza.db')
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect('yangi_baza.db')
     conn.row_factory = sqlite3.Row
     return conn
 
