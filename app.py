@@ -1,6 +1,7 @@
 import sqlite3
 import time
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 def get_db_connection():
     conn = sqlite3.connect('imtihon_bazasi.db')
@@ -79,35 +80,15 @@ def get_db_connection():
 
 app = Flask(__name__)
 app.secret_key = 'kod_123'
-# app.py ichidagi eski @app.route('/login', ...) qismini toping va 
-# faqat ichidagi mantiqni mana buga almashtiring:
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        phone = request.form.get('phone')
-        password = request.form.get('password')
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 1. Parolni so'rovdan olib tashladik, faqat telefon raqam bilan qidiramiz
-        cursor.execute("SELECT * FROM users WHERE phone = ?", (phone,))
-        user = cursor.fetchone()
-        conn.close()
-        
-        # 2. Endi parolni xavfsiz taqqoslaymiz (user[2] - bazadagi shifrlangan parol)
-        if user and check_password_hash(user[2], password):  
-            session['logged_in'] = True
-            session['user_id'] = user[0]
-            session['phone'] = user[1]
-            return redirect(url_for('dashboard')) # o'zingizning dashboard yoki quiz yo'nalishingiz
-        else:
-            flash("Login yoki parol xato kiritildi!", "danger")
-            return redirect(url_for('login'))
-            
-    return render_template('login.html')
+# BOSH SAHIFA
+@app.route('/')
+def index():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    return render_template('index.html', user=session['user'])
 
+# RO'YXATDAN O'TISH (REGISTER)
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -115,14 +96,18 @@ def register():
         tel = request.form.get('tel')
         parol = request.form.get('parol')
         
+        # Parolni bazaga xavfsiz shifrlab (hash) yozamiz
+        shifrlangan_parol = generate_password_hash(parol, method='pbkdf2:sha256')
+        
         db = get_db_connection()
         cursor = db.cursor()
         try:
-            cursor.execute("INSERT INTO foydalanuvchilar (ism, tel, parol) VALUES (?, ?, ?)", (ism, tel, parol))
+            cursor.execute("INSERT INTO foydalanuvchilar (ism, tel, parol) VALUES (?, ?, ?)", (ism, tel, shifrlangan_parol))
             db.commit()
             db.close()
+            
             session['user'] = ism
-            session['user_tel'] = tel  # Telefonni sessionga saqlaymiz, reyting uchun
+            session['user_tel'] = tel
             return redirect(url_for('index'))
         except sqlite3.IntegrityError:
             db.close()
@@ -130,6 +115,7 @@ def register():
             
     return render_template('register.html')
 
+# TIZIMGA KIRISH (LOGIN)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -138,14 +124,14 @@ def login():
         
         db = get_db_connection()
         cursor = db.cursor()
-        cursor.execute('''
-            SELECT * FROM foydalanuvchilar 
-            WHERE (ism = ? OR tel = ?) AND parol = ?
-        ''', (ism_yoki_tel, ism_yoki_tel, parol))
+        
+        # Ism yoki Telefon raqam bo'yicha foydalanuvchini qidiramiz
+        cursor.execute("SELECT * FROM foydalanuvchilar WHERE ism = ? OR tel = ?", (ism_yoki_tel, ism_yoki_tel))
         user = cursor.fetchone()
         db.close()
         
-        if user:
+        # Parolni shifrlangan kod bilan Python ichida solishtiramiz
+        if user and check_password_hash(user['parol'], parol):
             session['user'] = user['ism']
             session['user_tel'] = user['tel']
             return redirect(url_for('index'))
@@ -154,6 +140,7 @@ def login():
             
     return render_template('login.html')
 
+# TEST SAHIFASI
 @app.route('/test/<string:fan_nomi>', methods=['GET', 'POST'])
 def test(fan_nomi):
     if 'user' not in session:
@@ -166,17 +153,14 @@ def test(fan_nomi):
     db.close()
     
     if request.method == 'GET':
-        # Test sahifasiga kirgan vaqtni yozib olamiz
         session['boshlangan_vaqt'] = time.time()
         return render_template('test.html', fan=fan_nomi, savollar=savollar)
         
     if request.method == 'POST':
-        # Vaqtni hisoblash
         boshlangan = session.get('boshlangan_vaqt', time.time())
         yakunlangan = time.time()
         farq_soniya = int(yakunlangan - boshlangan)
         
-        # Vaqtni chiroyli ko'rinishga keltirish (Masalan: 1 qadam 25 soniya)
         if farq_soniya < 60:
             sarflangan_vaqt = f"{farq_soniya} soniya"
         else:
@@ -188,7 +172,6 @@ def test(fan_nomi):
             if tanlangan_javob == savol['javob']:
                 to_gri_javoblar += 1
                 
-        # Natijani bazaga (Reyting jadvaliga) saqlaymiz
         db = get_db_connection()
         cursor = db.cursor()
         cursor.execute('''
@@ -200,6 +183,7 @@ def test(fan_nomi):
         
         return render_template('natija.html', fan=fan_nomi, jami=len(savollar), to_gri=to_gri_javoblar, vaqt=sarflangan_vaqt)
 
+# REYTING
 @app.route('/rating')
 def rating():
     if 'user' not in session:
@@ -207,12 +191,12 @@ def rating():
         
     db = get_db_connection()
     cursor = db.cursor()
-    # Eng ko'p to'g'ri topganlar bo'yicha reytingni saralash
     cursor.execute('SELECT * FROM natijalar ORDER BY to_gri_javoblar DESC, id ASC')
     tizim_natijalari = cursor.fetchall()
     db.close()
     return render_template('rating.html', natijalar=tizim_natijalari)
 
+# TIZIMDAN CHIQISH
 @app.route('/logout')
 def logout():
     session.clear()
