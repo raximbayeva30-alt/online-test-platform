@@ -6,12 +6,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'loyiha_maxfiy_kaliti_2026'
 
+# Global o'zgaruvchi - server ishlab turgan muddatda bazani xotirada saqlaydi
+# Azure ruxsat xatolarini (Permission Denied) aylanib o'tish uchun eng zo'r yechim
+MEM_CONN = sqlite3.connect(':memory:', check_same_thread=False)
+MEM_CONN.row_factory = sqlite3.Row
+
 def get_db_connection():
-    # Linux serverlarida ruxsat xatosi (Permission denied) bermasligi uchun eng xavfsiz joy
-    db_path = '/tmp/yangi_baza.db'
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return MEM_CONN
 
 def ozi_avtomat_baza_yaratish():
     db = get_db_connection()
@@ -73,7 +74,6 @@ def ozi_avtomat_baza_yaratish():
         ]
         cursor.executemany("INSERT INTO savollar (fan_id, savol_matni, variant_a, variant_b, variant_c, variant_d, togri_javob) VALUES (?, ?, ?, ?, ?, ?, ?)", hamma_savollar)
         db.commit()
-    db.close()
 
 ozi_avtomat_baza_yaratish()
 
@@ -90,7 +90,6 @@ def login():
         parol = request.form.get('parol', '')
         db = get_db_connection()
         user = db.execute("SELECT * FROM foydalanuvchilar WHERE tel = ?", (tel,)).fetchone()
-        db.close()
         if user and check_password_hash(user['parol'], parol):
             session['user_id'] = user['id']
             session['user_ism'] = user['ism']
@@ -116,9 +115,7 @@ def register():
         except sqlite3.IntegrityError:
             flash("Bu telefon raqami allaqachon ro'yxatdan o'tgan!", "danger")
         except Exception as e:
-            flash(f"Xatolik yuz berdi: {str(e)}", "danger")
-        finally:
-            db.close()
+            flash(f"Xatolik: {str(e)}", "danger")
     return render_template('register.html')
 
 @app.route('/dashboard')
@@ -128,7 +125,6 @@ def dashboard():
     db = get_db_connection()
     fanlar = db.execute("SELECT * FROM fanlar").fetchall()
     natijalar = db.execute("SELECT * FROM natijalar WHERE user_tel = ? ORDER BY sana DESC", (session['user_tel'],)).fetchall()
-    db.close()
     return render_template('dashboard.html', fanlar=fanlar, natijalar=natijalar)
 
 @app.route('/test/<int:fan_id>', methods=['GET', 'POST'])
@@ -146,10 +142,8 @@ def test(fan_id):
         ball = round((togri / len(savollar)) * 100, 1) if savollar else 0
         db.execute("INSERT INTO natijalar (user_tel, user_ism, fan_nomi, ball) VALUES (?, ?, ?, ?)", (session['user_tel'], session['user_ism'], fan['nomi'], ball))
         db.commit()
-        db.close()
         flash(f"Test tugadi. Natijangiz: {ball}%", "info")
         return redirect(url_for('dashboard'))
-    db.close()
     return render_template('test.html', fan=fan, savollar=savollar)
 
 @app.route('/logout')
